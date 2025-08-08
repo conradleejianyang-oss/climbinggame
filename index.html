@@ -1,50 +1,49 @@
 <!-- index.html -->
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Mountain Climber</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Climber</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- ASSET NOTE: place all PNGs and manifest.json in the SAME directory as this file. -->
 </head>
 <body>
-  <main class="app">
-    <header class="hud">
-      <div class="hud-left">
-        <div id="score" class="score">0</div>
-        <div id="best" class="best">BEST: 0</div>
-      </div>
-      <div class="timer-wrap" aria-label="Time remaining">
-        <div id="timer" class="timer-bar"></div>
-      </div>
-      <div class="hud-right">
-        <button id="btn-restart" class="btn small" title="Restart (R)">↻</button>
-      </div>
-    </header>
-
-    <canvas id="game" aria-label="Mountain Climber"></canvas>
-
-    <div class="controls">
-      <button id="btn-left" class="btn big" aria-label="Move Left">LEFT ⟵</button>
-      <button id="btn-right" class="btn big" aria-label="Move Right">⟶ RIGHT</button>
+  <div id="game" aria-label="Climber game">
+    <div id="parallax" aria-hidden="true">
+      <div id="layer1" class="layer"></div>
+      <div id="layer2" class="layer"></div>
+      <div id="layer3" class="layer"></div>
+      <div id="layer4" class="layer"></div>
     </div>
 
-    <div id="overlay" class="overlay" hidden>
+    <div id="hud">
+      <div id="score" aria-live="polite">0</div>
+      <div id="timebar" aria-label="time remaining">
+        <div id="timebarFill"></div>
+      </div>
+    </div>
+
+    <div id="playspace">
+      <div id="holds" aria-label="climbing holds"></div>
+      <canvas id="climberCanvas" width="80" height="200" aria-label="climber sprite"></canvas>
+    </div>
+
+    <div id="controls">
+      <button id="btnLeft" aria-label="Choose left hold">Left ⟵</button>
+      <button id="btnRight" aria-label="Choose right hold">Right ⟶</button>
+    </div>
+
+    <div id="overlay" role="dialog" aria-modal="true" aria-live="assertive" hidden>
       <div class="panel">
-        <h2 id="overlay-title">Mountain Climber</h2>
-        <p id="overlay-text">
-          Press LEFT or RIGHT to grab the next hold. Match the side, refill the timer, climb forever.
-        </p>
-        <ul class="help">
-          <li>← / → keys or big buttons below</li>
-          <li>Timer drains in 3s; correct moves add time</li>
-          <li>Mismatch or timeout: you fall</li>
-        </ul>
-        <button id="btn-play" class="btn primary">Play</button>
+        <h2 id="overlayTitle">Game Over</h2>
+        <p id="overlayDesc">Score: <span id="finalScore">0</span></p>
+        <div class="hint">Press ← / → or tap buttons. Press T to toggle Day/Night.</div>
+        <button id="btnRestart" class="primary">Restart</button>
       </div>
     </div>
-  </main>
+  </div>
 
-  <script src="game.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
