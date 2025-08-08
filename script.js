@@ -32,10 +32,12 @@
 
   // Canvas scaling for HiDPI
   const deviceScale = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-  canvas.style.width = `${canvas.width}px`;
-  canvas.style.height = `${canvas.height}px`;
-  canvas.width = canvas.width * deviceScale;
-  canvas.height = canvas.height * deviceScale;
+  const cssW = canvas.width;
+  const cssH = canvas.height;
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+  canvas.width = cssW * deviceScale;
+  canvas.height = cssH * deviceScale;
   ctx.scale(deviceScale, deviceScale);
 
   // Constants
@@ -47,6 +49,7 @@
   const NUM_VISIBLE_HOLDS = 12;
   const MAX_SAME_SIDE_RUN = 3;
   const BG_SCROLL_SPEEDS = [0.05, 0.12, 0.25, 0.6]; // l1..l4
+  const ASSET_BASES = ['', './', './assets/', './images/', './img/'];
 
   // Assets
   const images = {};
@@ -74,8 +77,6 @@
   let frameHeight = 0;
 
   const climber = {
-    x: 20, // draw anchor inside 80x200 canvas
-    y: 20,
     facing: 'left', // 'left' | 'right'
     currentAction: 'idle-hang',
     currentFrameIdx: 0,
@@ -111,7 +112,6 @@
           if (this.currentAction === 'idle-hang') {
             this.currentFrameIdx = 0;
           } else if (this.currentAction === 'slip') {
-            // After slip, fall
             if (this.sequenceQueue.length === 0) {
               this.sequenceQueue.push('fall');
             }
@@ -123,82 +123,145 @@
       }
     },
     draw() {
-      const frames = actionToFrames[this.currentAction];
-      if (!frames || frames.length === 0) return;
+      const w = canvas.width / deviceScale;
+      const h = canvas.height / deviceScale;
 
-      const f = frames[Math.min(this.currentFrameIdx, frames.length - 1)];
-      const sx = f.col * frameWidth;
-      const sy = f.row * frameHeight;
-      const dw = 70; // render size within 80x200 canvas
-      const dh = 160;
-      const dx = (canvas.width / deviceScale - dw) / 2;
-      const dy = (canvas.height / deviceScale - dh) / 2;
+      // Always clear before transforms
+      ctx.clearRect(0, 0, w, h);
 
       ctx.save();
       // Flip horizontally for right-facing moves
       if (this.facing === 'right') {
-        ctx.translate(canvas.width / deviceScale, 0);
+        ctx.translate(w, 0);
         ctx.scale(-1, 1);
       }
-      // Clear canvas each frame
-      ctx.clearRect(0, 0, canvas.width / deviceScale, canvas.height / deviceScale);
-      ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(
-        images.sprite,
-        sx, sy, frameWidth, frameHeight,
-        dx, dy, dw, dh
-      );
+
+      if (images.sprite && frameWidth > 0 && frameHeight > 0) {
+        const frames = actionToFrames[this.currentAction];
+        if (frames && frames.length > 0) {
+          const f = frames[Math.min(this.currentFrameIdx, frames.length - 1)];
+          const sx = f.col * frameWidth;
+          const sy = f.row * frameHeight;
+          const dw = 70; // render size within 80x200 canvas
+          const dh = 160;
+          const dx = (w - dw) / 2;
+          const dy = (h - dh) / 2;
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(images.sprite, sx, sy, frameWidth, frameHeight, dx, dy, dw, dh);
+        }
+      } else {
+        // Fallback placeholder climber (if sprite not loaded)
+        const baseX = w / 2;
+        const baseY = h - 20;
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillStyle = 'rgba(120,210,190,0.9)';
+        ctx.lineWidth = 3;
+
+        // Body
+        ctx.beginPath();
+        ctx.arc(baseX, baseY - 55, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY - 45);
+        ctx.lineTo(baseX, baseY - 10);
+        ctx.stroke();
+
+        // Arms alternate based on action/frame to hint motion
+        const t = (this.currentFrameIdx % 12) / 12;
+        const armLift = (this.currentAction === 'reach' || this.currentAction === 'pull-up') ? 16 : 4;
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY - 40);
+        ctx.lineTo(baseX - 16, baseY - 30 - armLift * (1 - t));
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY - 40);
+        ctx.lineTo(baseX + 16, baseY - 30 - armLift * t);
+        ctx.stroke();
+
+        // Legs
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY - 10);
+        ctx.lineTo(baseX - 12, baseY);
+        ctx.moveTo(baseX, baseY - 10);
+        ctx.lineTo(baseX + 12, baseY);
+        ctx.stroke();
+      }
+
       ctx.restore();
     }
   };
 
-  // Utility: Load
+  // Utilities
   function loadImage(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = reject;
+      img.onerror = () => reject(new Error(`Image failed: ${src}`));
       img.src = src;
     });
   }
 
+  async function loadImageSmart(name) {
+    for (const base of ASSET_BASES) {
+      try {
+        const img = await loadImage(base + name);
+        return img;
+      } catch (_) {
+        // continue
+      }
+    }
+    return null;
+  }
+
+  async function loadManifestSmart() {
+    for (const base of ASSET_BASES) {
+      try {
+        const res = await fetch(base + 'manifest.json', { cache: 'no-store' });
+        if (res.ok) {
+          return await res.json();
+        }
+      } catch (_) {
+        // Likely file:// CORS or missing file; try next base
+      }
+    }
+    return null;
+  }
+
   async function loadAssets() {
-    const [
-      sprite,
-      l1day, l1night,
-      l2day, l2night,
-      l3day, l3night,
-      l4rock
-    ] = await Promise.all([
-      loadImage('climber_sprite_sheet.png'),
-      loadImage('layer1_sky_day.png'),
-      loadImage('layer1_sky_night.png'),
-      loadImage('layer2_mountains_day.png'),
-      loadImage('layer2_mountains_night.png'),
-      loadImage('layer3_treeline_day.png'),
-      loadImage('layer3_treeline_night.png'),
-      loadImage('layer4_rock_edge.png'),
+    const results = await Promise.allSettled([
+      loadImageSmart('climber_sprite_sheet.png'),
+      loadImageSmart('layer1_sky_day.png'),
+      loadImageSmart('layer1_sky_night.png'),
+      loadImageSmart('layer2_mountains_day.png'),
+      loadImageSmart('layer2_mountains_night.png'),
+      loadImageSmart('layer3_treeline_day.png'),
+      loadImageSmart('layer3_treeline_night.png'),
+      loadImageSmart('layer4_rock_edge.png'),
+      loadManifestSmart()
     ]);
 
-    images.sprite = sprite;
-    images.l1day = l1day;
-    images.l1night = l1night;
-    images.l2day = l2day;
-    images.l2night = l2night;
-    images.l3day = l3day;
-    images.l3night = l3night;
-    images.l4 = l4rock;
+    const [
+      rSprite,
+      rL1Day, rL1Night,
+      rL2Day, rL2Night,
+      rL3Day, rL3Night,
+      rL4,
+      rManifest
+    ] = results;
 
-    try {
-      const res = await fetch('manifest.json', { cache: 'no-store' });
-      if (res.ok) {
-        manifestData = await res.json();
-      } else {
-        console.warn('manifest.json not found, using fallback frame mapping');
-      }
-    } catch (e) {
-      console.warn('Failed to load manifest.json, using fallback frame mapping');
-    }
+    images.sprite = rSprite.status === 'fulfilled' ? rSprite.value : null;
+    images.l1day = rL1Day.status === 'fulfilled' ? rL1Day.value : null;
+    images.l1night = rL1Night.status === 'fulfilled' ? rL1Night.value : null;
+    images.l2day = rL2Day.status === 'fulfilled' ? rL2Day.value : null;
+    images.l2night = rL2Night.status === 'fulfilled' ? rL2Night.value : null;
+    images.l3day = rL3Day.status === 'fulfilled' ? rL3Day.value : null;
+    images.l3night = rL3Night.status === 'fulfilled' ? rL3Night.value : null;
+    images.l4 = rL4.status === 'fulfilled' ? rL4.value : null;
+    manifestData = rManifest.status === 'fulfilled' ? rManifest.value : null;
   }
 
   function buildActionFramesFromManifest() {
@@ -249,10 +312,31 @@
   function applyParallaxBackgrounds() {
     const pick = (dayImg, nightImg) => (isNightMode ? nightImg : dayImg);
 
-    layerEls.l1.style.backgroundImage = `url(${pick(images.l1day.src, images.l1night.src)})`;
-    layerEls.l2.style.backgroundImage = `url(${pick(images.l2day.src, images.l2night.src)})`;
-    layerEls.l3.style.backgroundImage = `url(${pick(images.l3day.src, images.l3night.src)})`;
-    layerEls.l4.style.backgroundImage = `url(${images.l4.src})`;
+    // Sky
+    const sky = pick(images.l1day, images.l1night);
+    layerEls.l1.style.backgroundImage = sky ? `url(${sky.src})` :
+      (isNightMode
+        ? 'linear-gradient(#0b1730, #071225)'
+        : 'linear-gradient(#a0d6ff, #d9f0fb)');
+
+    // Mountains
+    const mtn = pick(images.l2day, images.l2night);
+    layerEls.l2.style.backgroundImage = mtn ? `url(${mtn.src})` :
+      (isNightMode
+        ? 'linear-gradient(rgba(40,50,80,0.7), rgba(25,30,50,0.7))'
+        : 'linear-gradient(rgba(70,90,120,0.6), rgba(50,70,100,0.6))');
+
+    // Treeline
+    const tree = pick(images.l3day, images.l3night);
+    layerEls.l3.style.backgroundImage = tree ? `url(${tree.src})` :
+      (isNightMode
+        ? 'linear-gradient(rgba(20,50,50,0.6), rgba(10,30,30,0.6))'
+        : 'linear-gradient(rgba(30,70,70,0.5), rgba(20,50,50,0.5))');
+
+    // Rock edge
+    layerEls.l4.style.backgroundImage = images.l4
+      ? `url(${images.l4.src})`
+      : 'linear-gradient(to right, transparent 0%, transparent 70%, rgba(0,0,0,0.55) 85%, rgba(0,0,0,0.85) 100%)';
   }
 
   function updateParallax(dtMs) {
@@ -282,7 +366,6 @@
   }
 
   function generateSide(prevSideRunCount, lastSide) {
-    // avoid long runs
     const pickSide = () => (Math.random() < 0.5 ? 'left' : 'right');
     let side = pickSide();
     if (prevSideRunCount >= MAX_SAME_SIDE_RUN - 1 && lastSide) {
@@ -313,7 +396,6 @@
         runCount = 1;
         lastSide = h.side;
       }
-      // unshift creates top-to-bottom visual order, but we'll keep bottom at the end
       holds.unshift(h);
     }
     renderHolds();
@@ -321,7 +403,6 @@
 
   function renderHolds() {
     holdsEl.innerHTML = '';
-    // iterate top to bottom; bottom hold is last element
     for (let i = 0; i < holds.length; i++) {
       const h = holds[i];
       const el = document.createElement('div');
@@ -341,9 +422,7 @@
   }
 
   function advanceHolds() {
-    // remove bottom
     holds.pop();
-    // add new at top with fairness
     const last1 = holds[holds.length - 1]?.side || null;
     const last2 = holds[holds.length - 2]?.side || null;
     const last3 = holds[holds.length - 3]?.side || null;
@@ -391,7 +470,6 @@
     if (side === required) {
       isAnimatingMove = true;
       climber.setFacing(side);
-      // Reach -> pull-up -> idle
       climber.playSequence(['reach', 'pull-up', 'idle-hang'], () => {
         isAnimatingMove = false;
       });
@@ -399,7 +477,6 @@
       addScore(1);
       refillTimerFull();
     } else {
-      // Wrong move: slip -> fall -> game over
       isAnimatingMove = true;
       climber.setFacing(side);
       climber.playSequence(['slip', 'fall'], () => {
@@ -446,7 +523,6 @@
     const dt = Math.min(48, ts - lastTimestamp);
     lastTimestamp = ts;
 
-    // Update systems
     updateParallax(dt);
 
     if (!isGameOver) {
@@ -454,7 +530,6 @@
       if (timeRemainingMs <= 0) {
         timeRemainingMs = 0;
         updateTimebar();
-        // Timer loss: fall directly
         isAnimatingMove = true;
         climber.playSequence(['fall'], () => {
           isAnimatingMove = false;
@@ -481,8 +556,13 @@
 
   function resetState() {
     // Build frames
-    frameWidth = images.sprite.width / SPRITE_COLS;
-    frameHeight = images.sprite.height / SPRITE_ROWS;
+    if (images.sprite) {
+      frameWidth = images.sprite.width / SPRITE_COLS;
+      frameHeight = images.sprite.height / SPRITE_ROWS;
+    } else {
+      frameWidth = 1; // non-zero for frame stepping
+      frameHeight = 1;
+    }
 
     buildActionFramesFromManifest();
     autoSetDayNight();
