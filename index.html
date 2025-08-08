@@ -1,0 +1,50 @@
+<!-- index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mountain Climber</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="hud">
+      <div class="hud-left">
+        <div id="score" class="score">0</div>
+        <div id="best" class="best">BEST: 0</div>
+      </div>
+      <div class="timer-wrap" aria-label="Time remaining">
+        <div id="timer" class="timer-bar"></div>
+      </div>
+      <div class="hud-right">
+        <button id="btn-restart" class="btn small" title="Restart (R)">↻</button>
+      </div>
+    </header>
+
+    <canvas id="game" aria-label="Mountain Climber"></canvas>
+
+    <div class="controls">
+      <button id="btn-left" class="btn big" aria-label="Move Left">LEFT ⟵</button>
+      <button id="btn-right" class="btn big" aria-label="Move Right">⟶ RIGHT</button>
+    </div>
+
+    <div id="overlay" class="overlay" hidden>
+      <div class="panel">
+        <h2 id="overlay-title">Mountain Climber</h2>
+        <p id="overlay-text">
+          Press LEFT or RIGHT to grab the next hold. Match the side, refill the timer, climb forever.
+        </p>
+        <ul class="help">
+          <li>← / → keys or big buttons below</li>
+          <li>Timer drains in 3s; correct moves add time</li>
+          <li>Mismatch or timeout: you fall</li>
+        </ul>
+        <button id="btn-play" class="btn primary">Play</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
