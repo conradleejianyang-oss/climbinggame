@@ -1,154 +1,229 @@
 /* style.css */
-:root {
-  color-scheme: light dark;
-  --bg: #0b0e12;
-  --fg: #e6ecf1;
-  --accent: #3ad5ff;
-  --accent-2: #ffb703;
-  --muted: #7a8b9a;
-  --red: #ff5a67;
-  --green: #36d399;
+/* ASSET NOTE: place all PNGs and manifest.json in the SAME directory as index.html. */
 
-  --panel-bg: color-mix(in oklab, var(--bg) 85%, white 15%);
-  --panel-fg: var(--fg);
-  --shadow: 0 10px 30px rgba(0,0,0,0.35);
+:root {
+  --game-width: 420px;
+  --game-height: 740px;
+  --ui-bg: rgba(10, 12, 16, 0.6);
+  --ui-fg: #e9edf1;
+  --accent: #76d0b6;
+  --danger: #e05a5a;
+  --hold-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  --hold-gap: 10px;
+  --hold-col-gap: 48px;
+  --canvas-w: 80px;
+  --canvas-h: 200px;
+  --panel-bg: rgba(18, 20, 26, 0.9);
+  --panel-border: 1px solid rgba(255,255,255,0.08);
+  --btn-bg: #2a2f3a;
+  --btn-fg: #ffffff;
+  --btn-bg-hover: #3a4050;
+  --timebar-h: 10px;
 }
 
 * { box-sizing: border-box; }
 
 html, body {
   height: 100%;
-}
-
-body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-  background: var(--bg);
-  color: var(--fg);
-  display: grid;
-  place-items: stretch;
-}
-
-.app {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 100dvh;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.hud {
-  display: grid;
-  grid-template-columns: 1fr minmax(180px, 40%) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-}
-
-.hud-left, .hud-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.score {
-  font-weight: 800;
-  font-size: clamp(18px, 3.2vw, 28px);
-}
-.best {
-  color: var(--muted);
-  font-weight: 600;
-  font-size: clamp(12px, 2vw, 16px);
-}
-
-.timer-wrap {
-  width: 100%;
-  height: 14px;
-  background: color-mix(in oklab, var(--bg) 70%, white 30%);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25);
-}
-.timer-bar {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, var(--green), var(--accent-2), var(--red));
-  background-size: 200% 100%;
-  transform-origin: left center;
-  transform: scaleX(1);
-  transition: transform 80ms linear;
+  background: #0f1217;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--ui-fg);
 }
 
 #game {
-  display: block;
-  width: 100%;
-  height: 100%;
-  inline-size: 100%;
-  block-size: 100%;
-  touch-action: manipulation;
+  position: relative;
+  width: var(--game-width);
+  height: var(--game-height);
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #000;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
 }
 
-.controls {
+/* Parallax layers */
+#parallax, .layer {
+  position: absolute;
+  inset: 0;
+}
+.layer {
+  background-repeat: repeat-x;
+  background-size: cover;
+  will-change: background-position;
+}
+
+/* HUD */
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  z-index: 30;
+}
+
+#score {
+  padding: 6px 10px;
+  min-width: 48px;
+  text-align: center;
+  border-radius: 8px;
+  background: var(--ui-bg);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+#timebar {
+  flex: 1;
+  height: var(--timebar-h);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+  overflow: hidden;
+  outline: 1px solid rgba(255,255,255,0.06);
+}
+#timebarFill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #88e0c8, #5bc4a8);
+  transition: width 80ms linear;
+}
+
+/* Play space */
+#playspace {
+  position: absolute;
+  inset: 60px 0 90px 0;
+  display: grid;
+  place-items: center;
+  z-index: 20;
+}
+
+/* Holds grid (DOM) */
+#holds {
+  position: absolute;
+  bottom: 0;
+  width: calc(var(--game-width) - 120px);
+  height: calc(100% - 20px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: min-content;
+  justify-content: center;
+  align-content: end;
+  gap: var(--hold-gap) var(--hold-col-gap);
+  z-index: 21;
+  pointer-events: none;
+}
+
+.hold {
+  justify-self: center;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,0.12));
+  box-shadow: var(--hold-shadow);
+  opacity: 0.95;
+  transform: translateZ(0);
+}
+
+.hold.active {
+  outline: 2px solid rgba(255,255,255,0.8);
+  outline-offset: 1px;
+}
+
+/* Sizes */
+.size-small  { width: 24px; height: 12px; }
+.size-medium { width: 36px; height: 18px; }
+.size-large  { width: 48px; height: 24px; }
+
+/* Shapes */
+.shape-rounded { border-radius: 8px; }
+.shape-pill    { border-radius: 999px; }
+.shape-circle  { width: 28px; height: 28px; border-radius: 50%; }
+
+/* Rock edge visual alignment for canvas */
+#climberCanvas {
+  position: absolute;
+  right: 46px;
+  bottom: 76px;
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  image-rendering: auto;
+  z-index: 22;
+  pointer-events: none;
+}
+
+/* Controls */
+#controls {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  padding: 12px;
+  z-index: 40;
 }
 
-.btn {
-  -webkit-tap-highlight-color: transparent;
+#controls button {
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 60ms ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+#controls button:hover { background: var(--btn-bg-hover); }
+#controls button:active { transform: scale(0.98); }
+
+/* Overlay */
+#overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+}
+#overlay[hidden] { display: none; }
+
+#overlay .panel {
+  min-width: 70%;
+  padding: 20px 18px;
+  border-radius: 14px;
+  background: var(--panel-bg);
+  border: var(--panel-border);
+  text-align: center;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+}
+#overlay h2 {
+  margin: 0 0 8px;
+  font-weight: 800;
+}
+#overlay .hint {
+  opacity: 0.8;
+  font-size: 12px;
+  margin: 12px 0 16px;
+}
+#overlay .primary {
+  appearance: none;
   padding: 12px 16px;
   border-radius: 10px;
   border: 0;
-  background: color-mix(in oklab, var(--bg) 60%, white 40%);
-  color: var(--fg);
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  box-shadow: var(--shadow);
+  font-weight: 800;
+  background: linear-gradient(90deg, #6fe1c5, #4ac5a6);
+  color: #0b1416;
   cursor: pointer;
-  transition: transform 80ms ease, filter 80ms ease, background 120ms ease;
-}
-.btn:hover { filter: brightness(1.05); }
-.btn:active { transform: translateY(1px) scale(0.99); }
-.btn.big {
-  font-size: clamp(18px, 4vw, 22px);
-  padding: 18px 12px;
-}
-.btn.small {
-  font-size: 16px;
-  padding: 10px 12px;
-}
-.btn.primary {
-  background: linear-gradient(180deg, var(--accent), color-mix(in oklab, var(--accent) 60%, black 40%));
-  color: #001018;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.65), rgba(0,0,0,0.75));
-  display: grid;
-  place-items: center;
-  padding: 16px;
+/* Small screens */
+@media (max-width: 460px) {
+  :root {
+    --game-width: 100vw;
+    --game-height: 100vh;
+  }
+  #holds { width: calc(100% - 120px); }
 }
-.overlay .panel {
-  width: min(680px, 92vw);
-  background: var(--panel-bg);
-  color: var(--panel-fg);
-  border-radius: 16px;
-  padding: 18px 18px 22px;
-  box-shadow: var(--shadow);
-  text-align: center;
-}
-.overlay h2 {
-  margin: 6px 0 12px;
-  font-size: clamp(24px, 5vw, 38px);
-}
-.overlay .help {
-  text-align: left;
-  margin: 10px auto 18px;
-  max-width: 560px;
-  color: var(--muted);
-}
-.overlay .help li { margin: 6px 0; }
